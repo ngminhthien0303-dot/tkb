@@ -13,53 +13,76 @@ tick hoàn thành, xem theo từng ngày. Dữ liệu lưu trên server (đồng
 - Giao diện **sáng / tối**, thanh tiến độ hoàn thành
 
 - **Frontend**: React + Vite (thư mục `client/`)
-- **Backend**: Express + SQLite (`node:sqlite` có sẵn trong Node 24) — thư mục `server/`
+- **Backend**: Express + Postgres (thư mục `server/`)
 - **Đăng nhập**: JWT + mật khẩu mã hoá (bcryptjs)
 
 ## Yêu cầu
-- Node.js 22.5 trở lên (khuyến nghị 24+, vì dùng `node:sqlite`)
+- Node.js 18 trở lên
+- Một database Postgres — dùng [Neon](https://neon.tech) miễn phí (lưu vĩnh viễn)
 
-## Cách chạy (mở 2 cửa sổ terminal)
+## Chạy ở máy (dev)
 
-### 1. Backend
+Trước tiên tạo file `server/.env` (sao từ `server/.env.example`) và điền `DATABASE_URL` (chuỗi Neon) + `JWT_SECRET`.
+
+Mở **2 cửa sổ** terminal:
+
 ```bash
+# Cửa sổ 1 — backend
 cd server
 npm install
-npm run dev      # chạy tại http://localhost:3001
-```
+npm run dev      # http://localhost:3001
 
-### 2. Frontend
-```bash
+# Cửa sổ 2 — frontend
 cd client
 npm install
-npm run dev      # mở http://localhost:5173
+npm run dev      # http://localhost:5173
 ```
 
-Mở trình duyệt vào http://localhost:5173 → đăng ký tài khoản → bắt đầu thêm việc.
+Mở http://localhost:5173 → đăng ký → thêm việc.
+
+## Deploy lên Render (miễn phí)
+
+1. **Tạo database Neon**: vào https://neon.tech → tạo project → copy **Connection string**.
+2. **Đẩy code lên GitHub**:
+   ```bash
+   git remote add origin https://github.com/<tên-bạn>/tkb.git
+   git push -u origin main
+   ```
+3. **Tạo dịch vụ trên Render**: vào https://render.com → **New → Blueprint** → chọn repo
+   `tkb`. Render đọc `render.yaml` tự tạo web service.
+4. Khi được hỏi, dán **DATABASE_URL** = chuỗi Neon ở bước 1. (`JWT_SECRET` Render tự sinh.)
+5. Bấm **Apply / Deploy**. Vài phút sau bạn có link dạng `https://tkb-xxxx.onrender.com`.
+
+> Bản free của Render sẽ "ngủ" sau ~15 phút không dùng; lần truy cập sau tỉnh dậy mất ~30 giây.
+> Dữ liệu nằm trên Neon nên **không bị mất** khi deploy lại.
 
 ## Cấu trúc
 ```
 TKB/
+├── render.yaml      # cấu hình deploy Render
+├── package.json     # script build/start gộp cả 2 phần
 ├── server/          # API backend
-│   ├── index.js     # routes: auth + tasks
-│   ├── db.js        # khởi tạo SQLite
-│   └── tkb.db       # file database (tự tạo khi chạy)
+│   ├── index.js     # routes + phục vụ frontend khi deploy
+│   └── db.js        # kết nối Postgres + tạo bảng
 └── client/          # giao diện React
     └── src/
-        ├── App.jsx      # điều hướng theo trạng thái đăng nhập
-        ├── Auth.jsx     # màn hình đăng nhập / đăng ký
-        ├── Planner.jsx  # màn hình chính: lịch việc trong ngày
-        └── api.js       # gọi API + lưu token
+        ├── App.jsx        # điều hướng + chuyển sáng/tối
+        ├── Auth.jsx       # đăng nhập / đăng ký
+        ├── Planner.jsx    # màn hình chính
+        ├── ListView.jsx   # chế độ danh sách (kéo-thả)
+        ├── TimelineView.jsx # chế độ khung giờ 24h
+        ├── TaskModal.jsx  # form thêm/sửa việc
+        └── api.js         # gọi API + lưu token
 ```
 
 ## API
-| Method | Đường dẫn              | Mô tả                       |
-|--------|------------------------|-----------------------------|
-| POST   | `/api/auth/register`   | Đăng ký                     |
-| POST   | `/api/auth/login`      | Đăng nhập → trả về token    |
-| GET    | `/api/tasks?date=...`  | Lấy việc theo ngày          |
-| POST   | `/api/tasks`           | Thêm việc                   |
-| PATCH  | `/api/tasks/:id`       | Sửa / tick hoàn thành       |
-| DELETE | `/api/tasks/:id`       | Xoá việc                    |
-
-> Khi deploy thật, nhớ đặt biến môi trường `JWT_SECRET` thành chuỗi bí mật riêng.
+| Method | Đường dẫn                | Mô tả                          |
+|--------|--------------------------|--------------------------------|
+| POST   | `/api/auth/register`     | Đăng ký                        |
+| POST   | `/api/auth/login`        | Đăng nhập → trả về token       |
+| GET    | `/api/tasks?date=...`    | Lấy việc theo ngày             |
+| POST   | `/api/tasks`             | Thêm việc                      |
+| PATCH  | `/api/tasks/:id`         | Sửa việc                       |
+| PATCH  | `/api/tasks/reorder`     | Sắp xếp lại thứ tự             |
+| POST   | `/api/tasks/:id/toggle`  | Tick/bỏ hoàn thành theo ngày   |
+| DELETE | `/api/tasks/:id`         | Xoá việc                       |
