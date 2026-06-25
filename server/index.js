@@ -1,16 +1,18 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { OAuth2Client } from 'google-auth-library';
 import { query, init } from './db.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'doi-chuoi-bi-mat-nay-khi-deploy';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
@@ -49,50 +51,57 @@ function dow(dateStr) {
   return new Date(dateStr + 'T00:00:00').getDay();
 }
 
-// ---------- Auth routes ----------
+// ---------- Auth: Đăng nhập bằng Google ----------
 app.post(
-  '/api/auth/register',
+  '/api/auth/google',
   wrap(async (req, res) => {
-    const email = (req.body.email || '').trim().toLowerCase();
-    const password = req.body.password || '';
-    if (!email || !password)
-      return res.status(400).json({ error: 'Thiếu email hoặc mật khẩu' });
-    if (password.length < 6)
-      return res.status(400).json({ error: 'Mật khẩu tối thiểu 6 ký tự' });
+    if (!GOOGLE_CLIENT_ID)
+      return res
+        .status(500)
+        .json({ error: 'Máy chủ chưa cấu hình GOOGLE_CLIENT_ID' });
 
-    const existing = await query('SELECT id FROM users WHERE email = $1', [
+    const { credential } = req.body;
+    if (!credential)
+      return res
+        .status(400)
+        .json({ error: 'Thiếu thông tin đăng nhập Google' });
+
+    // Xác thực token Google gửi lên
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch {
+      return res.status(401).json({ error: 'Đăng nhập Google không hợp lệ' });
+    }
+
+    const email = (payload.email || '').toLowerCase();
+    const googleId = payload.sub;
+    if (!email)
+      return res.status(400).json({ error: 'Không lấy được email từ Google' });
+
+    // Tìm tài khoản; chưa có thì tạo mới (đăng nhập = đăng ký luôn)
+    const found = await query('SELECT id, email FROM users WHERE email = $1', [
       email,
     ]);
-    if (existing.rows.length)
-      return res.status(409).json({ error: 'Email đã được đăng ký' });
+    let user = found.rows[0];
+    if (!user) {
+      const ins = await query(
+        'INSERT INTO users (email, google_id) VALUES ($1, $2) RETURNING id, email',
+        [email, googleId]
+      );
+      user = ins.rows[0];
+    } else {
+      await query(
+        'UPDATE users SET google_id = $1 WHERE id = $2 AND google_id IS NULL',
+        [googleId, user.id]
+      );
+    }
 
-    const hash = bcrypt.hashSync(password, 10);
-    const { rows } = await query(
-      'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email',
-      [email, hash]
-    );
-    const user = rows[0];
     res.json({ token: signToken(user), user });
-  })
-);
-
-app.post(
-  '/api/auth/login',
-  wrap(async (req, res) => {
-    const email = (req.body.email || '').trim().toLowerCase();
-    const password = req.body.password || '';
-
-    const { rows } = await query('SELECT * FROM users WHERE email = $1', [
-      email,
-    ]);
-    const user = rows[0];
-    if (!user || !bcrypt.compareSync(password, user.password_hash))
-      return res.status(401).json({ error: 'Email hoặc mật khẩu sai' });
-
-    res.json({
-      token: signToken(user),
-      user: { id: user.id, email: user.email },
-    });
   })
 );
 

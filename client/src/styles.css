@@ -146,6 +146,19 @@ textarea {
   font-size: 14px;
   margin-top: 12px;
 }
+.google-btn-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 18px 0 6px;
+  min-height: 44px;
+}
+.hint {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 18px;
+}
 .link {
   background: none;
   border: none;

@@ -1,75 +1,85 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, saveAuth } from './api.js';
 
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
 export default function Auth({ onAuth }) {
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const btnRef = useRef(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  // Nhận credential từ Google rồi gửi lên server
+  async function handleCredential(resp) {
     setError('');
     setLoading(true);
     try {
-      const fn = mode === 'login' ? api.login : api.register;
-      const { token, user } = await fn(email, password);
+      const { token, user } = await api.googleLogin(resp.credential);
       saveAuth(token, user);
       onAuth(user);
     } catch (err) {
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   }
 
+  useEffect(() => {
+    if (!CLIENT_ID) {
+      setError('Chưa cấu hình VITE_GOOGLE_CLIENT_ID (xem hướng dẫn).');
+      return;
+    }
+
+    function renderBtn() {
+      if (!window.google?.accounts?.id || !btnRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: CLIENT_ID,
+        callback: handleCredential,
+      });
+      window.google.accounts.id.renderButton(btnRef.current, {
+        theme: 'filled_blue',
+        size: 'large',
+        shape: 'pill',
+        text: 'continue_with',
+        locale: 'vi',
+        width: 280,
+      });
+    }
+
+    // Nạp thư viện Google Identity Services một lần
+    if (document.getElementById('gsi-script')) {
+      renderBtn();
+    } else {
+      const s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.async = true;
+      s.defer = true;
+      s.id = 'gsi-script';
+      s.onload = renderBtn;
+      document.head.appendChild(s);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="auth-wrap">
-      <form className="auth-card" onSubmit={handleSubmit}>
+      <div className="auth-card">
         <h1>🗓️ TKB</h1>
-        <p className="subtitle">
-          {mode === 'login' ? 'Đăng nhập để xem lịch của bạn' : 'Tạo tài khoản mới'}
-        </p>
+        <p className="subtitle">Lịch việc trong ngày của bạn</p>
 
-        <label>Email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="ban@email.com"
-          required
-        />
+        <div className="google-btn-wrap" ref={btnRef} />
 
-        <label>Mật khẩu</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Tối thiểu 6 ký tự"
-          required
-        />
-
+        {loading && (
+          <p className="muted" style={{ textAlign: 'center' }}>
+            Đang đăng nhập…
+          </p>
+        )}
         {error && <div className="error">{error}</div>}
 
-        <button className="btn-primary" disabled={loading}>
-          {loading ? 'Đang xử lý…' : mode === 'login' ? 'Đăng nhập' : 'Đăng ký'}
-        </button>
-
-        <p className="switch">
-          {mode === 'login' ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'}{' '}
-          <button
-            type="button"
-            className="link"
-            onClick={() => {
-              setMode(mode === 'login' ? 'register' : 'login');
-              setError('');
-            }}
-          >
-            {mode === 'login' ? 'Đăng ký' : 'Đăng nhập'}
-          </button>
+        <p className="hint">
+          🔒 Không cần mật khẩu. Bạn chỉ cần đang đăng nhập Gmail trên thiết bị
+          này là vào được — người khác không có quyền vào Gmail đó thì không đăng
+          nhập được.
         </p>
-      </form>
+      </div>
     </div>
   );
 }

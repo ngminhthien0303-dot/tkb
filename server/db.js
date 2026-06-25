@@ -60,6 +60,10 @@ export async function init() {
     CREATE INDEX IF NOT EXISTS idx_tasks_user_date   ON tasks(user_id, date);
     CREATE INDEX IF NOT EXISTS idx_tasks_user_repeat ON tasks(user_id, repeat);
   `);
+
+  // Di trú cho đăng nhập Google: thêm cột google_id, bỏ bắt buộc mật khẩu.
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT`);
+  await pool.query(`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`);
 }
 
 export default pool;

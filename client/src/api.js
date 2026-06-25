@@ -34,16 +34,11 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  register: (email, password) =>
-    request('/api/auth/register', {
+  // Gửi token Google (credential) lên server để xác thực + lấy token đăng nhập
+  googleLogin: (credential) =>
+    request('/api/auth/google', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
-    }),
-
-  login: (email, password) =>
-    request('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ credential }),
     }),
 
   listTasks: (date) => request(`/api/tasks?date=${date}`),
