@@ -15,3 +15,6 @@ server/.env
 # Log / OS
 *.log
 .DS_Store
+
+# Claude Code (cấu hình cục bộ)
+.claude/
