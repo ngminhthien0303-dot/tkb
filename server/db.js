@@ -19,6 +19,11 @@ const pool = new Pool({
   ssl: isLocal ? false : { rejectUnauthorized: false },
 });
 
+// Neon đóng kết nối rảnh sau một lúc; bắt lỗi này để server không bị crash.
+pool.on('error', (err) => {
+  console.error('⚠️  Kết nối Postgres rảnh bị đóng (sẽ tự kết nối lại):', err.message);
+});
+
 export const query = (text, params) => pool.query(text, params);
 
 // Tạo bảng nếu chưa có (chạy lúc khởi động).
