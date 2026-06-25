@@ -1,0 +1,17 @@
+# Cấu hình Render Blueprint — Render đọc file này để tạo dịch vụ tự động.
+services:
+  - type: web
+    name: tkb
+    runtime: node
+    plan: free
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      # DATABASE_URL: tự điền trong Dashboard (chuỗi kết nối Neon)
+      - key: DATABASE_URL
+        sync: false
+      # JWT_SECRET: Render tự sinh chuỗi ngẫu nhiên
+      - key: JWT_SECRET
+        generateValue: true

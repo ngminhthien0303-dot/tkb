@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Bash(node index.js)",
+      "Bash(npm run *)",
+      "Bash(ls -la *.db)",
+      "Bash(rm -f tkb.db tkb.db-*)",
+      "Bash(rm -f tkb.db tkb.db-journal tkb.db-wal tkb.db-shm)",
+      "Bash(ls *.db)",
+      "Bash(docker --version)",
+      "Read(//tmp/**)",
+      "Bash(node test.mjs)",
+      "Bash(rm -rf /tmp/pgtest)",
+      "Bash(git --version)"
+    ]
+  }
+}
